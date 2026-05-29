@@ -1,9 +1,443 @@
 <!DOCTYPE html>
-<html>
-	<head>
-		<title>Hello</title>
-	</head>
-	<body>
-		<h1>Hello!</h1>
-	</body>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>type.fast — 타이핑 속도 테스트</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #0d0d0f;
+      --surface: #141416;
+      --border:  #1e1e22;
+      --text:    #c9c9d0;
+      --dim:     #484855;
+      --accent:  #7b61ff;
+      --correct: #4ade80;
+      --error:   #f87171;
+    }
+
+    body {
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+    }
+
+    .container { width: 100%; max-width: 720px; }
+
+    /* ── Header ── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 48px;
+    }
+    .logo-sub  { color: var(--accent); font-size: 11px; letter-spacing: .25em; text-transform: uppercase; margin-bottom: 4px; }
+    .logo-main { font-size: 22px; font-weight: 700; letter-spacing: -.02em; }
+    .logo-main span { color: var(--accent); }
+
+    .lang-group { display: flex; gap: 8px; }
+    .lang-btn {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--dim);
+      font-family: inherit;
+      font-size: 13px;
+      padding: 6px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: border-color .2s, color .2s;
+      letter-spacing: .05em;
+    }
+    .lang-btn:hover { border-color: var(--accent); color: var(--text); }
+    .lang-btn.active { background: #7b61ff18; border-color: var(--accent); color: var(--accent); }
+
+    /* ── Text display ── */
+    #text-display {
+      font-size: 22px;
+      line-height: 1.85;
+      letter-spacing: .04em;
+      padding: 28px 32px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      user-select: none;
+      word-break: break-word;
+      min-height: 120px;
+      margin-bottom: 32px;
+    }
+    #text-display .ch        { color: var(--dim); transition: color .08s; }
+    #text-display .ch.correct{ color: var(--correct); }
+    #text-display .ch.error  { color: var(--error); }
+    #text-display .ch.cursor { border-bottom: 2px solid var(--accent); }
+
+    /* ── Textarea ── */
+    #input-area {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 16px;
+      padding: 20px 24px;
+      resize: none;
+      outline: none;
+      transition: border-color .2s;
+      line-height: 1.6;
+      caret-color: var(--accent);
+    }
+    #input-area.active { border-color: #7b61ff66; }
+    #input-area::placeholder { color: var(--dim); }
+    #input-area::selection { background: #7b61ff33; }
+
+    /* ── Status bar ── */
+    .status-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 20px;
+    }
+    #status-text { color: var(--dim); font-size: 12px; letter-spacing: .08em; }
+
+    .restart-btn {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--dim);
+      font-family: inherit;
+      font-size: 13px;
+      padding: 8px 24px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: border-color .2s, color .2s;
+      letter-spacing: .08em;
+    }
+    .restart-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── Results ── */
+    #result-section { display: none; }
+    #result-section.show {
+      display: block;
+      animation: fadeUp .4s cubic-bezier(.16,1,.3,1) forwards;
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .result-card {
+      padding: 40px 32px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 24px;
+    }
+    .result-label {
+      color: var(--dim);
+      font-size: 11px;
+      letter-spacing: .2em;
+      text-transform: uppercase;
+      margin-bottom: 32px;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 40px;
+    }
+    .stat-box {
+      padding: 24px 16px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      text-align: center;
+    }
+    .stat-box.accent {
+      background: #7b61ff10;
+      border-color: #7b61ff33;
+    }
+    .stat-value {
+      font-size: 44px;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1;
+      margin-bottom: 8px;
+    }
+    .stat-box.accent .stat-value { color: var(--accent); }
+    .stat-unit { font-size: 20px; font-weight: 400; }
+    .stat-name {
+      color: var(--dim);
+      font-size: 11px;
+      letter-spacing: .15em;
+      text-transform: uppercase;
+    }
+
+    .result-meta {
+      color: var(--dim);
+      font-size: 13px;
+      margin-bottom: 28px;
+      border-top: 1px solid var(--border);
+      padding-top: 24px;
+    }
+    .result-meta span { color: var(--text); }
+
+    .review-card {
+      padding: 20px 24px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+    .review-label {
+      color: var(--dim);
+      font-size: 11px;
+      letter-spacing: .15em;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+    #review-text { font-size: 15px; line-height: 1.9; letter-spacing: .03em; word-break: break-word; }
+
+    /* ── Footer ── */
+    footer {
+      margin-top: 48px;
+      color: var(--dim);
+      font-size: 11px;
+      letter-spacing: .1em;
+      text-align: center;
+    }
+    footer span { color: var(--accent); }
+
+    /* ── Responsive ── */
+    @media (max-width: 600px) {
+      #text-display { font-size: 18px; line-height: 1.9; padding: 20px; }
+      .result-card  { padding: 28px 20px; }
+      .stat-value   { font-size: 34px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- Header -->
+  <header>
+    <div>
+      <div class="logo-sub">typing speed test</div>
+      <div class="logo-main">type<span>.</span>fast</div>
+    </div>
+    <div class="lang-group">
+      <button class="lang-btn active" id="btn-ko" onclick="setLang('ko')">한국어</button>
+      <button class="lang-btn"        id="btn-en" onclick="setLang('en')">English</button>
+    </div>
+  </header>
+
+  <!-- Typing Section -->
+  <div id="typing-section">
+    <div id="text-display"></div>
+    <textarea id="input-area" rows="3" placeholder="여기에 타이핑을 시작하세요..." spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"></textarea>
+    <div class="status-bar">
+      <div id="status-text">타이핑을 시작하면 측정이 시작됩니다</div>
+      <button class="restart-btn" onclick="restart()">↺ restart</button>
+    </div>
+  </div>
+
+  <!-- Result Section -->
+  <div id="result-section">
+    <div class="result-card">
+      <div class="result-label">— results —</div>
+      <div class="stats-grid">
+        <div class="stat-box accent">
+          <div class="stat-value" id="res-wpm">0</div>
+          <div class="stat-name">wpm</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-value" id="res-acc">0<span class="stat-unit">%</span></div>
+          <div class="stat-name">accuracy</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-value" id="res-err">0</div>
+          <div class="stat-name">errors</div>
+        </div>
+      </div>
+      <div class="result-meta">
+        완료 시간 <span id="res-time">0s</span>
+        &nbsp;·&nbsp;
+        <span id="res-msg"></span>
+      </div>
+      <button class="restart-btn" onclick="restart()" style="font-size:14px;padding:12px 32px;">↺ 다시 도전</button>
+    </div>
+
+    <div class="review-card">
+      <div class="review-label">review</div>
+      <div id="review-text"></div>
+    </div>
+  </div>
+
+</div>
+
+<footer>type<span>.</span>fast &nbsp;·&nbsp; no timer, just flow</footer>
+
+<script>
+  const KO = [
+    "사람은 자신이 두려워하는 것의 노예가 된다.",
+    "꽃이 진다고 봄을 슬퍼하지 마라. 꽃은 지지 않으면 열매를 맺지 못한다.",
+    "지금 이 순간이 가장 아름다운 때임을 기억하라.",
+    "모든 시작은 작은 한 걸음에서 비롯된다.",
+    "별을 보려면 먼저 어둠에 익숙해져야 한다.",
+    "당신이 살고 싶은 삶을 살아라. 시간은 생각보다 빨리 흐른다.",
+    "강물은 돌아가더라도 결국 바다에 닿는다.",
+    "오늘 할 수 있는 일을 내일로 미루지 마라.",
+    "가장 깊은 밤이 지나면 가장 밝은 새벽이 온다.",
+    "두려움은 꿈을 먹고 자란다. 용기는 행동에서 태어난다.",
+    "삶이란 가까이서 보면 비극이지만, 멀리서 보면 희극이다.",
+    "나무는 폭풍 속에서 뿌리를 깊이 내린다.",
+  ];
+  const EN = [
+    "The only way to do great work is to love what you do.",
+    "In the middle of every difficulty lies opportunity.",
+    "It does not matter how slowly you go as long as you do not stop.",
+    "Life is what happens when you are busy making other plans.",
+    "The journey of a thousand miles begins with a single step.",
+    "To be yourself in a world that is constantly trying to make you something else is the greatest accomplishment.",
+    "You only live once, but if you do it right, once is enough.",
+    "In three words I can sum up everything I learned about life: it goes on.",
+    "Whatever you are, be a good one.",
+    "The best time to plant a tree was twenty years ago. The second best time is now.",
+    "Not all those who wander are lost.",
+    "We accept the love we think we deserve.",
+  ];
+
+  let lang = 'ko';
+  let text = '';
+  let started = false;
+  let finished = false;
+  let startTime = null;
+  let timerInterval = null;
+  let userInput = '';
+
+  const display   = document.getElementById('text-display');
+  const textarea  = document.getElementById('input-area');
+  const statusEl  = document.getElementById('status-text');
+  const typingDiv = document.getElementById('typing-section');
+  const resultDiv = document.getElementById('result-section');
+
+  function getRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+  function renderDisplay(input) {
+    display.innerHTML = text.split('').map((ch, i) => {
+      let cls = 'ch';
+      if (i < input.length) cls += input[i] === ch ? ' correct' : ' error';
+      if (i === input.length) cls += ' cursor';
+      return `<span class="${cls}">${ch === ' ' ? '&nbsp;' : ch}</span>`;
+    }).join('');
+  }
+
+  function init() {
+    text = getRandom(lang === 'ko' ? KO : EN);
+    userInput = '';
+    started = false;
+    finished = false;
+    startTime = null;
+    clearInterval(timerInterval);
+
+    textarea.value = '';
+    textarea.className = 'lang-btn' in window ? '' : '';  // reset
+    textarea.placeholder = lang === 'ko' ? '여기에 타이핑을 시작하세요...' : 'Start typing here...';
+    textarea.style.letterSpacing = lang === 'ko' ? '.04em' : '.02em';
+    display.style.letterSpacing  = lang === 'ko' ? '.04em' : '.02em';
+
+    statusEl.textContent = lang === 'ko'
+      ? '타이핑을 시작하면 측정이 시작됩니다'
+      : 'Start typing to begin...';
+
+    typingDiv.style.display = 'block';
+    resultDiv.classList.remove('show');
+    resultDiv.style.display = 'none';
+
+    renderDisplay('');
+    textarea.focus();
+  }
+
+  function setLang(l) {
+    lang = l;
+    document.getElementById('btn-ko').classList.toggle('active', l === 'ko');
+    document.getElementById('btn-en').classList.toggle('active', l === 'en');
+    init();
+  }
+
+  function restart() { init(); }
+
+  function showResults() {
+    const totalSec = (Date.now() - startTime) / 1000;
+    let errors = 0;
+    for (let i = 0; i < text.length; i++) {
+      if (userInput[i] !== text[i]) errors++;
+    }
+    const accuracy = Math.round(((text.length - errors) / text.length) * 100);
+    const words    = lang === 'ko' ? text.length / 2.5 : text.trim().split(/\s+/).length;
+    const wpm      = Math.round(words / (totalSec / 60));
+    const msg      = accuracy >= 95 ? '🎯 완벽에 가까워요!' : accuracy >= 80 ? '👍 잘 하셨어요!' : '💪 조금 더 연습해봐요';
+
+    document.getElementById('res-wpm').textContent = wpm;
+    document.getElementById('res-acc').innerHTML   = accuracy + '<span class="stat-unit">%</span>';
+    document.getElementById('res-err').textContent = errors;
+    document.getElementById('res-time').textContent = totalSec.toFixed(1) + 's';
+    document.getElementById('res-msg').textContent  = msg;
+
+    // Review
+    document.getElementById('review-text').innerHTML = text.split('').map((ch, i) => {
+      const color = i < userInput.length
+        ? (userInput[i] === ch ? 'var(--correct)' : 'var(--error)')
+        : 'var(--dim)';
+      return `<span style="color:${color}">${ch === ' ' ? '&nbsp;' : ch}</span>`;
+    }).join('');
+
+    typingDiv.style.display = 'none';
+    resultDiv.style.display = 'block';
+    // Trigger animation
+    requestAnimationFrame(() => resultDiv.classList.add('show'));
+  }
+
+  textarea.addEventListener('input', (e) => {
+    if (finished) return;
+    userInput = e.target.value;
+
+    if (!started && userInput.length > 0) {
+      started = true;
+      startTime = Date.now();
+      textarea.classList.add('active');
+      timerInterval = setInterval(() => {
+        const sec = ((Date.now() - startTime) / 1000).toFixed(1);
+        statusEl.textContent = `${sec}s  ·  ${userInput.length} / ${text.length}`;
+      }, 100);
+    }
+
+    renderDisplay(userInput);
+
+    if (userInput.length >= text.length) {
+      finished = true;
+      clearInterval(timerInterval);
+      showResults();
+    }
+  });
+
+  // Prevent tab key from losing focus
+  textarea.addEventListener('keydown', (e) => {
+    if (e.key === 'Tab') { e.preventDefault(); }
+  });
+
+  // Boot
+  init();
+</script>
+</body>
 </html>
