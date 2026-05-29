@@ -349,6 +349,17 @@
   }
   .tap-sub { font-size: 0.65rem; color: var(--muted); opacity: 0.45; text-align: center; line-height: 1.5; }
 
+
+  #rankingBoard {
+    background: var(--panel);
+    border-radius: 12px;
+    padding: 12px;
+    border: 1px solid rgba(255,255,255,0.06);
+    max-height: 220px;
+    overflow-y: auto;
+    font-size: 0.75rem;
+  }
+
   /* Key display */
   #keyDisplay {
     background: var(--panel);
@@ -497,6 +508,9 @@
       </div>
 
       <!-- Keyboard display -->
+      
+      <div id="rankingBoard"></div>
+
       <div id="keyDisplay">
         <span class="key-display-label">KEYBOARD INPUT</span>
         <div id="keyGrid">
@@ -649,6 +663,7 @@ function showGameUI() {
   vizCanvas  = document.getElementById('vizCanvas');
   vizCtx     = vizCanvas.getContext('2d');
   resizeCanvases();
+  renderRanking();
 }
 
 function changeFile() {
@@ -739,6 +754,8 @@ function endGame() {
   document.getElementById('tapHint').textContent = '완료!';
   document.getElementById('trackSub').textContent =
     `최종 점수: ${score.toLocaleString()} · 정확도: ${calcAccuracy()}`;
+
+  saveScore();
 }
 
 function resetGame() {
@@ -1078,6 +1095,83 @@ function calcAccuracy() {
   return ((perfectTaps + goodTaps*0.5)/totalTaps*100).toFixed(1)+'%';
 }
 
+
+// ═══════════════════════════════════════════════════
+// SUPABASE SCORE SAVE
+// ═══════════════════════════════════════════════════
+async function saveScore() {
+  if (!window.supabaseClient) return;
+
+  try {
+    const playerName = prompt('플레이어 이름 입력') || 'Anonymous';
+
+    const { error } = await supabaseClient
+      .from('game_scores')
+      .insert({
+        player_name: playerName,
+        track_name: document.getElementById('trackName').textContent,
+
+        score: score,
+        combo: combo,
+
+        perfect_count: perfectTaps,
+        good_count: goodTaps,
+        miss_count: missTaps,
+
+        accuracy: parseFloat(calcAccuracy()) || 0,
+        bpm: Math.round(bpm)
+      });
+
+    if (error) {
+      console.error(error);
+      alert('점수 저장 실패');
+      return;
+    }
+
+    alert('점수 저장 완료!');
+    renderRanking();
+
+  } catch (err) {
+    console.error(err);
+    alert('DB 오류');
+  }
+}
+
+async function renderRanking() {
+  if (!window.supabaseClient) return;
+
+  const board = document.getElementById('rankingBoard');
+  if (!board) return;
+
+  const { data, error } = await supabaseClient
+    .from('game_scores')
+    .select('*')
+    .order('score', { ascending: false })
+    .limit(10);
+
+  if (error) {
+    board.innerHTML = '랭킹 로드 실패';
+    return;
+  }
+
+  board.innerHTML = `
+    <div style="margin-bottom:8px;font-weight:bold;color:#00f5c4">
+      TOP RANKING
+    </div>
+    ${data.map((row, idx) => `
+      <div style="
+        display:flex;
+        justify-content:space-between;
+        margin-bottom:6px;
+      ">
+        <span>#${idx + 1} ${row.player_name}</span>
+        <span>${row.score}</span>
+      </div>
+    `).join('')}
+  `;
+}
+
+
 // ═══════════════════════════════════════════════════
 // VISUALIZER
 // ═══════════════════════════════════════════════════
@@ -1098,6 +1192,7 @@ function drawVisualizer() {
   }
 }
 </script>
+
 <!-- Supabase -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -1110,5 +1205,6 @@ const supabaseClient = supabase.createClient(
   SUPABASE_ANON_KEY
 );
 </script>
+
 </body>
 </html>
