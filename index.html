@@ -1,443 +1,1102 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>type.fast — 타이핑 속도 테스트</title>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&display=swap" rel="stylesheet" />
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>BEATPULSE — 리듬게임</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Noto+Sans+KR:wght@300;400;700&display=swap');
 
-    :root {
-      --bg:      #0d0d0f;
-      --surface: #141416;
-      --border:  #1e1e22;
-      --text:    #c9c9d0;
-      --dim:     #484855;
-      --accent:  #7b61ff;
-      --correct: #4ade80;
-      --error:   #f87171;
-    }
+  :root {
+    --bg: #08080f;
+    --panel: #0f0f1e;
+    --accent: #00f5c4;
+    --accent2: #ff3cac;
+    --accent3: #f5e642;
+    --glow: rgba(0,245,196,0.35);
+    --glow2: rgba(255,60,172,0.35);
+    --text: #e0e0f0;
+    --muted: #555577;
+  }
 
-    body {
-      min-height: 100vh;
-      background: var(--bg);
-      color: var(--text);
-      font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 24px 16px;
-    }
+  * { margin:0; padding:0; box-sizing:border-box; }
 
-    .container { width: 100%; max-width: 720px; }
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Sans KR', sans-serif;
+    overflow: hidden;
+    user-select: none;
+  }
 
-    /* ── Header ── */
-    header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 12px;
-      margin-bottom: 48px;
-    }
-    .logo-sub  { color: var(--accent); font-size: 11px; letter-spacing: .25em; text-transform: uppercase; margin-bottom: 4px; }
-    .logo-main { font-size: 22px; font-weight: 700; letter-spacing: -.02em; }
-    .logo-main span { color: var(--accent); }
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(0,245,196,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,245,196,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    animation: gridMove 10s linear infinite;
+    pointer-events: none; z-index: 0;
+  }
+  @keyframes gridMove { to { transform: translateY(40px); } }
 
-    .lang-group { display: flex; gap: 8px; }
-    .lang-btn {
-      background: none;
-      border: 1px solid var(--border);
-      color: var(--dim);
-      font-family: inherit;
-      font-size: 13px;
-      padding: 6px 16px;
-      border-radius: 4px;
-      cursor: pointer;
-      transition: border-color .2s, color .2s;
-      letter-spacing: .05em;
-    }
-    .lang-btn:hover { border-color: var(--accent); color: var(--text); }
-    .lang-btn.active { background: #7b61ff18; border-color: var(--accent); color: var(--accent); }
+  /* ═══ LAYOUT: two-column when game active ═══ */
+  #root {
+    position: relative; z-index: 1;
+    width: 100%; height: 100%;
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+  }
 
-    /* ── Text display ── */
-    #text-display {
-      font-size: 22px;
-      line-height: 1.85;
-      letter-spacing: .04em;
-      padding: 28px 32px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      user-select: none;
-      word-break: break-word;
-      min-height: 120px;
-      margin-bottom: 32px;
-    }
-    #text-display .ch        { color: var(--dim); transition: color .08s; }
-    #text-display .ch.correct{ color: var(--correct); }
-    #text-display .ch.error  { color: var(--error); }
-    #text-display .ch.cursor { border-bottom: 2px solid var(--accent); }
+  /* Upload screen — centered column */
+  #uploadScreen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    width: 100%;
+    max-width: 440px;
+    padding: 32px 24px;
+    margin: auto;
+  }
 
-    /* ── Textarea ── */
-    #input-area {
-      width: 100%;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      color: var(--text);
-      font-family: inherit;
-      font-size: 16px;
-      padding: 20px 24px;
-      resize: none;
-      outline: none;
-      transition: border-color .2s;
-      line-height: 1.6;
-      caret-color: var(--accent);
-    }
-    #input-area.active { border-color: #7b61ff66; }
-    #input-area::placeholder { color: var(--dim); }
-    #input-area::selection { background: #7b61ff33; }
+  /* Game screen — full height two-column */
+  #gameScreen {
+    display: none;
+    width: 100%;
+    height: 100%;
+    max-width: 900px;
+    margin: auto;
+    padding: 0;
+  }
+  #gameScreen.visible {
+    display: flex;
+    flex-direction: row;
+  }
 
-    /* ── Status bar ── */
-    .status-bar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-top: 20px;
-    }
-    #status-text { color: var(--dim); font-size: 12px; letter-spacing: .08em; }
+  /* LEFT PANEL — lane + controls */
+  #leftPanel {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    padding: 16px 12px 16px 20px;
+    gap: 10px;
+  }
 
-    .restart-btn {
-      background: none;
-      border: 1px solid var(--border);
-      color: var(--dim);
-      font-family: inherit;
-      font-size: 13px;
-      padding: 8px 24px;
-      border-radius: 4px;
-      cursor: pointer;
-      transition: border-color .2s, color .2s;
-      letter-spacing: .08em;
-    }
-    .restart-btn:hover { border-color: var(--accent); color: var(--accent); }
+  /* RIGHT PANEL — tap zone + visualizer */
+  #rightPanel {
+    width: 220px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    padding: 16px 20px 16px 8px;
+    gap: 10px;
+  }
 
-    /* ── Results ── */
-    #result-section { display: none; }
-    #result-section.show {
-      display: block;
-      animation: fadeUp .4s cubic-bezier(.16,1,.3,1) forwards;
-    }
-    @keyframes fadeUp {
-      from { opacity: 0; transform: translateY(20px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
+  /* ── LOGO ── */
+  .logo {
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 900;
+    font-size: 1.8rem;
+    letter-spacing: 6px;
+    color: var(--accent);
+    text-shadow: 0 0 20px var(--glow);
+  }
+  .logo span { color: var(--accent2); }
+  .logo-small {
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 900;
+    font-size: 1.1rem;
+    letter-spacing: 4px;
+    color: var(--accent);
+    text-shadow: 0 0 12px var(--glow);
+  }
+  .logo-small span { color: var(--accent2); }
 
-    .result-card {
-      padding: 40px 32px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      margin-bottom: 24px;
-    }
-    .result-label {
-      color: var(--dim);
-      font-size: 11px;
-      letter-spacing: .2em;
-      text-transform: uppercase;
-      margin-bottom: 32px;
-    }
+  /* ── UPLOAD ── */
+  #uploadZone {
+    width: 100%;
+    border: 2px dashed var(--muted);
+    border-radius: 20px;
+    padding: 40px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s;
+    background: rgba(255,255,255,0.02);
+  }
+  #uploadZone:hover, #uploadZone.drag {
+    border-color: var(--accent);
+    background: rgba(0,245,196,0.05);
+    box-shadow: 0 0 28px var(--glow);
+  }
+  #uploadZone .icon { font-size: 3rem; margin-bottom: 12px; }
+  #uploadZone p { color: var(--muted); font-size: 0.85rem; margin-top: 6px; }
+  #uploadZone strong { color: var(--accent); font-size: 1.05rem; display: block; margin-bottom: 4px; }
+  #fileInput { display: none; }
 
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 8px;
-      margin-bottom: 40px;
-    }
-    .stat-box {
-      padding: 24px 16px;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      text-align: center;
-    }
-    .stat-box.accent {
-      background: #7b61ff10;
-      border-color: #7b61ff33;
-    }
-    .stat-value {
-      font-size: 44px;
-      font-weight: 700;
-      color: var(--text);
-      line-height: 1;
-      margin-bottom: 8px;
-    }
-    .stat-box.accent .stat-value { color: var(--accent); }
-    .stat-unit { font-size: 20px; font-weight: 400; }
-    .stat-name {
-      color: var(--dim);
-      font-size: 11px;
-      letter-spacing: .15em;
-      text-transform: uppercase;
-    }
+  /* ── TRACK INFO ── */
+  #trackInfo {
+    width: 100%;
+    background: var(--panel);
+    border-radius: 12px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border: 1px solid rgba(0,245,196,0.15);
+    flex-shrink: 0;
+  }
+  .track-icon {
+    width: 40px; height: 40px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.2rem; flex-shrink: 0;
+    animation: rotate 4s linear infinite paused;
+  }
+  .track-icon.playing { animation-play-state: running; }
+  @keyframes rotate { to { transform: rotate(360deg); } }
+  .track-name { font-weight: 700; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .track-sub  { color: var(--muted); font-size: 0.7rem; margin-top: 2px; }
 
-    .result-meta {
-      color: var(--dim);
-      font-size: 13px;
-      margin-bottom: 28px;
-      border-top: 1px solid var(--border);
-      padding-top: 24px;
-    }
-    .result-meta span { color: var(--text); }
+  /* ── SCORE BAR ── */
+  #scoreBar {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .stat-box {
+    flex: 1; background: var(--panel);
+    border-radius: 10px; padding: 8px 6px;
+    text-align: center;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .stat-label { font-size: 0.55rem; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; }
+  .stat-value { font-family: 'Orbitron', sans-serif; font-size: 1.1rem; font-weight: 700; margin-top: 2px; }
+  #scoreVal { color: var(--accent); }
+  #comboVal { color: var(--accent2); }
+  #accuracyVal { color: var(--accent3); }
 
-    .review-card {
-      padding: 20px 24px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-    }
-    .review-label {
-      color: var(--dim);
-      font-size: 11px;
-      letter-spacing: .15em;
-      text-transform: uppercase;
-      margin-bottom: 14px;
-    }
-    #review-text { font-size: 15px; line-height: 1.9; letter-spacing: .03em; word-break: break-word; }
+  /* ── BEAT LANE ── */
+  #beatLane {
+    flex: 1;                  /* fills remaining vertical space */
+    min-height: 0;
+    background: var(--panel);
+    border-radius: 16px;
+    border: 1px solid rgba(0,245,196,0.1);
+    position: relative;
+    overflow: hidden;
+  }
+  #laneCanvas {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+  }
+  #perfectZoneBar {
+    position: absolute; left: 0; right: 0;
+    bottom: 38px; height: 16px;
+    background: rgba(0,245,196,0.04);
+    border-top: 1px solid rgba(0,245,196,0.08);
+    border-bottom: 1px solid rgba(0,245,196,0.08);
+    z-index: 4; pointer-events: none;
+  }
+  #laneLabel {
+    position: absolute; right: 14px; bottom: 50px;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.5rem; color: var(--accent);
+    letter-spacing: 2px; opacity: 0.5;
+    z-index: 6; pointer-events: none;
+  }
+  #judgment {
+    position: absolute; top: 45%; left: 50%;
+    transform: translate(-50%,-50%);
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.8rem; font-weight: 900;
+    pointer-events: none; opacity: 0; z-index: 10;
+    white-space: nowrap;
+  }
+  #judgment.show { animation: judgeAnim 0.6s ease-out forwards; }
+  #judgment.perfect { color: var(--accent);  text-shadow: 0 0 24px var(--glow); }
+  #judgment.good    { color: var(--accent3); text-shadow: 0 0 20px rgba(245,230,66,0.5); }
+  #judgment.miss    { color: var(--accent2); text-shadow: 0 0 20px var(--glow2); }
+  @keyframes judgeAnim {
+    0%   { opacity: 1; transform: translate(-50%,-50%) scale(1.3); }
+    40%  { opacity: 1; transform: translate(-50%,-62%) scale(1); }
+    100% { opacity: 0; transform: translate(-50%,-85%) scale(0.9); }
+  }
 
-    /* ── Footer ── */
-    footer {
-      margin-top: 48px;
-      color: var(--dim);
-      font-size: 11px;
-      letter-spacing: .1em;
-      text-align: center;
-    }
-    footer span { color: var(--accent); }
+  /* ── PROGRESS ── */
+  #progressWrap {
+    height: 3px; background: rgba(255,255,255,0.04);
+    border-radius: 2px; overflow: hidden; flex-shrink: 0;
+  }
+  #progressBar {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, var(--accent2), var(--accent));
+    border-radius: 2px; transition: width 0.4s linear;
+  }
 
-    /* ── Responsive ── */
-    @media (max-width: 600px) {
-      #text-display { font-size: 18px; line-height: 1.9; padding: 20px; }
-      .result-card  { padding: 28px 20px; }
-      .stat-value   { font-size: 34px; }
-    }
-  </style>
+  /* ── SPEED CONTROL ── */
+  #speedControl {
+    background: var(--panel);
+    border-radius: 12px;
+    padding: 10px 14px;
+    border: 1px solid rgba(255,255,255,0.06);
+    flex-shrink: 0;
+  }
+  .speed-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  .speed-label {
+    font-size: 0.6rem; color: var(--muted);
+    letter-spacing: 2px; text-transform: uppercase;
+  }
+  .speed-value {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.9rem; font-weight: 700; color: var(--accent);
+  }
+  .speed-slider {
+    -webkit-appearance: none; appearance: none;
+    width: 100%; height: 4px;
+    border-radius: 2px; outline: none; cursor: pointer;
+    background: linear-gradient(90deg, var(--accent) var(--pct, 40%), rgba(255,255,255,0.1) var(--pct, 40%));
+  }
+  .speed-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--glow);
+    cursor: pointer;
+  }
+  .speed-slider::-moz-range-thumb {
+    width: 16px; height: 16px; border-radius: 50%; border: none;
+    background: var(--accent); box-shadow: 0 0 8px var(--glow); cursor: pointer;
+  }
+  .speed-ticks {
+    display: flex; justify-content: space-between;
+    margin-top: 4px;
+  }
+  .speed-tick {
+    font-size: 0.55rem; color: var(--muted); cursor: pointer;
+    transition: color 0.2s;
+  }
+  .speed-tick:hover { color: var(--accent); }
+
+  /* ── CONTROLS ── */
+  #controls { display: flex; gap: 8px; flex-shrink: 0; }
+  .btn {
+    flex: 1; padding: 10px 8px; border: none; border-radius: 10px;
+    font-family: 'Orbitron', sans-serif; font-size: 0.65rem;
+    font-weight: 700; letter-spacing: 1.5px; cursor: pointer; transition: all 0.2s;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent), #00c4a0);
+    color: #08080f; box-shadow: 0 4px 16px var(--glow);
+  }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 24px var(--glow); }
+  .btn-secondary {
+    background: var(--panel); color: var(--muted);
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .btn-secondary:hover { border-color: var(--accent2); color: var(--accent2); }
+
+  /* ── RIGHT PANEL ELEMENTS ── */
+
+  /* Visualizer */
+  #visualizer {
+    height: 80px; flex-shrink: 0;
+  }
+  #vizCanvas {
+    width: 100%; height: 100%;
+    border-radius: 10px;
+    background: var(--panel);
+    border: 1px solid rgba(0,245,196,0.08);
+    display: block;
+  }
+
+  /* Tap zone */
+  #tapZone {
+    flex: 1;
+    min-height: 0;
+    border-radius: 18px;
+    background: var(--panel);
+    border: 2px solid rgba(0,245,196,0.12);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 6px;
+    position: relative;
+    overflow: hidden;
+    transition: background 0.08s, border-color 0.08s, box-shadow 0.08s;
+  }
+  #tapZone:active { transform: scale(0.97); }
+  #tapZone.hit-perfect { background: rgba(0,245,196,0.16); border-color: var(--accent); box-shadow: 0 0 40px var(--glow); }
+  #tapZone.hit-good    { background: rgba(245,230,66,0.10); border-color: var(--accent3); box-shadow: 0 0 30px rgba(245,230,66,0.3); }
+  #tapZone.hit-miss    { background: rgba(255,60,172,0.08); border-color: var(--accent2); }
+  .tap-hint {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.9rem; font-weight: 700;
+    color: var(--muted); letter-spacing: 3px;
+  }
+  .tap-sub { font-size: 0.65rem; color: var(--muted); opacity: 0.45; text-align: center; line-height: 1.5; }
+
+  /* Key display */
+  #keyDisplay {
+    background: var(--panel);
+    border-radius: 12px;
+    padding: 10px 14px;
+    border: 1px solid rgba(255,255,255,0.06);
+    flex-shrink: 0;
+  }
+  .key-display-label {
+    font-size: 0.55rem; color: var(--muted);
+    letter-spacing: 2px; text-transform: uppercase;
+    margin-bottom: 8px; display: block;
+  }
+  #keyGrid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 3px;
+  }
+  .kb { /* key badge */
+    height: 22px;
+    border: 1px solid rgba(0,245,196,0.2);
+    border-radius: 4px;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.45rem;
+    color: rgba(0,245,196,0.5);
+    background: rgba(0,245,196,0.04);
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.06s;
+    letter-spacing: 0;
+  }
+  .kb.pressed {
+    background: rgba(0,245,196,0.22);
+    border-color: var(--accent);
+    color: var(--accent);
+    box-shadow: 0 0 8px var(--glow);
+    transform: scale(0.92);
+  }
+  .kb.wide { grid-column: span 2; }
+  .kb.wider { grid-column: span 3; }
+  .kb.full  { grid-column: span 6; }
+
+  /* Ripple */
+  .beat-circle {
+    position: fixed; border-radius: 50%; pointer-events: none;
+    animation: beatCircle 0.5s ease-out forwards; z-index: 100;
+  }
+  @keyframes beatCircle {
+    0%   { transform: translate(-50%,-50%) scale(0.3); opacity: 1; }
+    100% { transform: translate(-50%,-50%) scale(2.8); opacity: 0; }
+  }
+
+  /* Beat flash overlay */
+  #beatFlashEl {
+    position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background: radial-gradient(ellipse at center, rgba(0,245,196,0.07) 0%, transparent 70%);
+    opacity: 0; transition: opacity 0.08s;
+  }
+  #beatFlashEl.on { opacity: 1; }
+</style>
 </head>
 <body>
+<div id="beatFlashEl"></div>
+<div id="root">
 
-<div class="container">
-
-  <!-- Header -->
-  <header>
-    <div>
-      <div class="logo-sub">typing speed test</div>
-      <div class="logo-main">type<span>.</span>fast</div>
-    </div>
-    <div class="lang-group">
-      <button class="lang-btn active" id="btn-ko" onclick="setLang('ko')">한국어</button>
-      <button class="lang-btn"        id="btn-en" onclick="setLang('en')">English</button>
-    </div>
-  </header>
-
-  <!-- Typing Section -->
-  <div id="typing-section">
-    <div id="text-display"></div>
-    <textarea id="input-area" rows="3" placeholder="여기에 타이핑을 시작하세요..." spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"></textarea>
-    <div class="status-bar">
-      <div id="status-text">타이핑을 시작하면 측정이 시작됩니다</div>
-      <button class="restart-btn" onclick="restart()">↺ restart</button>
+  <!-- ══ UPLOAD SCREEN ══ -->
+  <div id="uploadScreen">
+    <div class="logo">BEAT<span>PULSE</span></div>
+    <div id="uploadZone" onclick="document.getElementById('fileInput').click()">
+      <div class="icon">🎵</div>
+      <strong>음악 파일을 업로드하세요</strong>
+      <p>MP3 · WAV · OGG 지원</p>
+      <p>클릭 또는 드래그 &amp; 드롭</p>
+      <input type="file" id="fileInput" accept="audio/*">
     </div>
   </div>
 
-  <!-- Result Section -->
-  <div id="result-section">
-    <div class="result-card">
-      <div class="result-label">— results —</div>
-      <div class="stats-grid">
-        <div class="stat-box accent">
-          <div class="stat-value" id="res-wpm">0</div>
-          <div class="stat-name">wpm</div>
-        </div>
-        <div class="stat-box">
-          <div class="stat-value" id="res-acc">0<span class="stat-unit">%</span></div>
-          <div class="stat-name">accuracy</div>
-        </div>
-        <div class="stat-box">
-          <div class="stat-value" id="res-err">0</div>
-          <div class="stat-name">errors</div>
+  <!-- ══ GAME SCREEN ══ -->
+  <div id="gameScreen">
+
+    <!-- LEFT: lane area -->
+    <div id="leftPanel">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+        <div class="logo-small">BEAT<span>PULSE</span></div>
+        <div id="trackInfo" style="flex:1;margin-left:12px;border-radius:10px;padding:8px 12px;">
+          <div class="track-icon" id="trackIcon">🎵</div>
+          <div style="flex:1;min-width:0">
+            <div class="track-name" id="trackName">—</div>
+            <div class="track-sub"  id="trackSub">준비 완료</div>
+          </div>
         </div>
       </div>
-      <div class="result-meta">
-        완료 시간 <span id="res-time">0s</span>
-        &nbsp;·&nbsp;
-        <span id="res-msg"></span>
+
+      <div id="scoreBar">
+        <div class="stat-box"><div class="stat-label">SCORE</div><div class="stat-value" id="scoreVal">0</div></div>
+        <div class="stat-box"><div class="stat-label">COMBO</div><div class="stat-value" id="comboVal">0</div></div>
+        <div class="stat-box"><div class="stat-label">ACC</div><div class="stat-value" id="accuracyVal">—</div></div>
+        <div class="stat-box"><div class="stat-label">PERFECT</div><div class="stat-value" id="perfectVal" style="color:var(--accent)">0</div></div>
+        <div class="stat-box"><div class="stat-label">GOOD</div><div class="stat-value" id="goodVal" style="color:var(--accent3)">0</div></div>
+        <div class="stat-box"><div class="stat-label">MISS</div><div class="stat-value" id="missVal" style="color:var(--accent2)">0</div></div>
       </div>
-      <button class="restart-btn" onclick="restart()" style="font-size:14px;padding:12px 32px;">↺ 다시 도전</button>
+
+      <!-- Main beat lane — stretches to fill height -->
+      <div id="beatLane">
+        <canvas id="laneCanvas"></canvas>
+        <div id="perfectZoneBar"></div>
+        <div id="laneLabel">HIT</div>
+        <div id="judgment"></div>
+      </div>
+
+      <div id="progressWrap"><div id="progressBar"></div></div>
+
+      <!-- Speed control -->
+      <div id="speedControl">
+        <div class="speed-header">
+          <span class="speed-label">노트 속도</span>
+          <span class="speed-value" id="speedDisplay">×2.0</span>
+        </div>
+        <input type="range" class="speed-slider" id="speedSlider"
+               min="0.5" max="5" step="0.25" value="2"
+               oninput="onSpeedChange(this)">
+        <div class="speed-ticks">
+          <span class="speed-tick" onclick="setSpeed(0.5)">×0.5</span>
+          <span class="speed-tick" onclick="setSpeed(1)">×1</span>
+          <span class="speed-tick" onclick="setSpeed(2)">×2</span>
+          <span class="speed-tick" onclick="setSpeed(3)">×3</span>
+          <span class="speed-tick" onclick="setSpeed(5)">×5</span>
+        </div>
+      </div>
+
+      <div id="controls">
+        <button class="btn btn-primary" id="playBtn" onclick="togglePlay()">▶ 시작</button>
+        <button class="btn btn-secondary" onclick="resetGame()">↺ 초기화</button>
+        <button class="btn btn-secondary" onclick="changeFile()">♫ 변경</button>
+      </div>
     </div>
 
-    <div class="review-card">
-      <div class="review-label">review</div>
-      <div id="review-text"></div>
+    <!-- RIGHT: tap zone + visualizer + keys -->
+    <div id="rightPanel">
+      <div id="visualizer"><canvas id="vizCanvas"></canvas></div>
+
+      <div id="tapZone"
+           onclick="handleTap()"
+           ontouchstart="handleTapTouch(event)">
+        <div class="tap-hint" id="tapHint">TAP</div>
+        <div class="tap-sub">화면 클릭<br>또는 아무 키나</div>
+      </div>
+
+      <!-- Keyboard display -->
+      <div id="keyDisplay">
+        <span class="key-display-label">KEYBOARD INPUT</span>
+        <div id="keyGrid">
+          <!-- Row 1: numbers -->
+          <div class="kb" id="kb_1">1</div>
+          <div class="kb" id="kb_2">2</div>
+          <div class="kb" id="kb_3">3</div>
+          <div class="kb" id="kb_4">4</div>
+          <div class="kb" id="kb_5">5</div>
+          <div class="kb" id="kb_6">6</div>
+          <!-- Row 2: QWERTY -->
+          <div class="kb" id="kb_q">Q</div>
+          <div class="kb" id="kb_w">W</div>
+          <div class="kb" id="kb_e">E</div>
+          <div class="kb" id="kb_r">R</div>
+          <div class="kb" id="kb_t">T</div>
+          <div class="kb" id="kb_y">Y</div>
+          <!-- Row 3: ASDF -->
+          <div class="kb" id="kb_a">A</div>
+          <div class="kb" id="kb_s">S</div>
+          <div class="kb" id="kb_d">D</div>
+          <div class="kb" id="kb_f">F</div>
+          <div class="kb" id="kb_g">G</div>
+          <div class="kb" id="kb_h">H</div>
+          <!-- Row 4: ZXCV -->
+          <div class="kb" id="kb_z">Z</div>
+          <div class="kb" id="kb_x">X</div>
+          <div class="kb" id="kb_c">C</div>
+          <div class="kb" id="kb_v">V</div>
+          <div class="kb" id="kb_b">B</div>
+          <div class="kb" id="kb_n">N</div>
+          <!-- Row 5: special -->
+          <div class="kb wide" id="kb_shift">⇧</div>
+          <div class="kb wider" id="kb_space">SPACE</div>
+          <div class="kb" id="kb_enter">↵</div>
+        </div>
+      </div>
     </div>
   </div>
-
 </div>
 
-<footer>type<span>.</span>fast &nbsp;·&nbsp; no timer, just flow</footer>
-
 <script>
-  const KO = [
-    "사람은 자신이 두려워하는 것의 노예가 된다.",
-    "꽃이 진다고 봄을 슬퍼하지 마라. 꽃은 지지 않으면 열매를 맺지 못한다.",
-    "지금 이 순간이 가장 아름다운 때임을 기억하라.",
-    "모든 시작은 작은 한 걸음에서 비롯된다.",
-    "별을 보려면 먼저 어둠에 익숙해져야 한다.",
-    "당신이 살고 싶은 삶을 살아라. 시간은 생각보다 빨리 흐른다.",
-    "강물은 돌아가더라도 결국 바다에 닿는다.",
-    "오늘 할 수 있는 일을 내일로 미루지 마라.",
-    "가장 깊은 밤이 지나면 가장 밝은 새벽이 온다.",
-    "두려움은 꿈을 먹고 자란다. 용기는 행동에서 태어난다.",
-    "삶이란 가까이서 보면 비극이지만, 멀리서 보면 희극이다.",
-    "나무는 폭풍 속에서 뿌리를 깊이 내린다.",
-  ];
-  const EN = [
-    "The only way to do great work is to love what you do.",
-    "In the middle of every difficulty lies opportunity.",
-    "It does not matter how slowly you go as long as you do not stop.",
-    "Life is what happens when you are busy making other plans.",
-    "The journey of a thousand miles begins with a single step.",
-    "To be yourself in a world that is constantly trying to make you something else is the greatest accomplishment.",
-    "You only live once, but if you do it right, once is enough.",
-    "In three words I can sum up everything I learned about life: it goes on.",
-    "Whatever you are, be a good one.",
-    "The best time to plant a tree was twenty years ago. The second best time is now.",
-    "Not all those who wander are lost.",
-    "We accept the love we think we deserve.",
-  ];
+// ═══════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════
+let audioCtx, analyser, source, buffer;
+let isPlaying = false;
+let startTime = 0, pauseOffset = 0;
+let animFrame;
 
-  let lang = 'ko';
-  let text = '';
-  let started = false;
-  let finished = false;
-  let startTime = null;
-  let timerInterval = null;
-  let userInput = '';
+let bpm = 120;
+let beatInterval = 0.5;
+let beatWindow  = 0.18;  // total window (±)
 
-  const display   = document.getElementById('text-display');
-  const textarea  = document.getElementById('input-area');
-  const statusEl  = document.getElementById('status-text');
-  const typingDiv = document.getElementById('typing-section');
-  const resultDiv = document.getElementById('result-section');
+// Speed: travelTime = BASE_TRAVEL / speedMult
+// Higher speed → notes move faster → less time on screen
+let speedMult = 2.0;
+const BASE_TRAVEL = 3.0; // seconds at ×1
+function getTravelTime() { return BASE_TRAVEL / speedMult; }
 
-  function getRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+let score = 0, combo = 0, totalTaps = 0;
+let perfectTaps = 0, goodTaps = 0, missTaps = 0;
+let beatQueue  = [];
+let laneNotes  = [];
+let lastBeatTime = -999;
 
-  function renderDisplay(input) {
-    display.innerHTML = text.split('').map((ch, i) => {
-      let cls = 'ch';
-      if (i < input.length) cls += input[i] === ch ? ' correct' : ' error';
-      if (i === input.length) cls += ' cursor';
-      return `<span class="${cls}">${ch === ' ' ? '&nbsp;' : ch}</span>`;
-    }).join('');
+let laneCanvas, laneCtx, vizCanvas, vizCtx;
+
+// ═══════════════════════════════════════════════════
+// UPLOAD
+// ═══════════════════════════════════════════════════
+document.getElementById('fileInput').addEventListener('change', e => {
+  if (e.target.files[0]) loadFile(e.target.files[0]);
+});
+const uploadZone = document.getElementById('uploadZone');
+uploadZone.addEventListener('dragover',  e => { e.preventDefault(); uploadZone.classList.add('drag'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault(); uploadZone.classList.remove('drag');
+  if (e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]);
+});
+
+async function loadFile(file) {
+  const reader = new FileReader();
+  reader.onload = async e => {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    buffer = await audioCtx.decodeAudioData(e.target.result);
+    bpm = await detectBPM(buffer);
+    beatInterval = 60 / bpm;
+
+    const dur = buffer.duration;
+    document.getElementById('trackName').textContent = file.name.replace(/\.[^.]+$/, '');
+    document.getElementById('trackSub').textContent =
+      `${Math.floor(dur/60)}:${String(Math.floor(dur%60)).padStart(2,'0')} · BPM ${Math.round(bpm)}`;
+
+    showGameUI();
+    resetStats();
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ═══════════════════════════════════════════════════
+// BPM DETECTION
+// ═══════════════════════════════════════════════════
+async function detectBPM(audioBuffer) {
+  const offCtx = new OfflineAudioContext(1, audioBuffer.length, audioBuffer.sampleRate);
+  const src = offCtx.createBufferSource();
+  src.buffer = audioBuffer;
+  const filt = offCtx.createBiquadFilter();
+  filt.type = 'bandpass'; filt.frequency.value = 200; filt.Q.value = 1;
+  src.connect(filt); filt.connect(offCtx.destination); src.start(0);
+  const rendered = await offCtx.startRendering();
+  const data = rendered.getChannelData(0);
+  const sr   = rendered.sampleRate;
+  const frameSize = Math.floor(sr * 0.01);
+  const energies = [];
+  for (let i = 0; i < data.length - frameSize; i += frameSize) {
+    let e = 0;
+    for (let j = 0; j < frameSize; j++) e += data[i+j]*data[i+j];
+    energies.push(Math.sqrt(e/frameSize));
   }
-
-  function init() {
-    text = getRandom(lang === 'ko' ? KO : EN);
-    userInput = '';
-    started = false;
-    finished = false;
-    startTime = null;
-    clearInterval(timerInterval);
-
-    textarea.value = '';
-    textarea.className = 'lang-btn' in window ? '' : '';  // reset
-    textarea.placeholder = lang === 'ko' ? '여기에 타이핑을 시작하세요...' : 'Start typing here...';
-    textarea.style.letterSpacing = lang === 'ko' ? '.04em' : '.02em';
-    display.style.letterSpacing  = lang === 'ko' ? '.04em' : '.02em';
-
-    statusEl.textContent = lang === 'ko'
-      ? '타이핑을 시작하면 측정이 시작됩니다'
-      : 'Start typing to begin...';
-
-    typingDiv.style.display = 'block';
-    resultDiv.classList.remove('show');
-    resultDiv.style.display = 'none';
-
-    renderDisplay('');
-    textarea.focus();
-  }
-
-  function setLang(l) {
-    lang = l;
-    document.getElementById('btn-ko').classList.toggle('active', l === 'ko');
-    document.getElementById('btn-en').classList.toggle('active', l === 'en');
-    init();
-  }
-
-  function restart() { init(); }
-
-  function showResults() {
-    const totalSec = (Date.now() - startTime) / 1000;
-    let errors = 0;
-    for (let i = 0; i < text.length; i++) {
-      if (userInput[i] !== text[i]) errors++;
+  const onsets = [];
+  for (let i = 1; i < energies.length-1; i++) {
+    if (energies[i] > 0.015 && energies[i] > energies[i-1]*1.4 && energies[i] >= energies[i+1]) {
+      onsets.push(i*0.01); i += 3;
     }
-    const accuracy = Math.round(((text.length - errors) / text.length) * 100);
-    const words    = lang === 'ko' ? text.length / 2.5 : text.trim().split(/\s+/).length;
-    const wpm      = Math.round(words / (totalSec / 60));
-    const msg      = accuracy >= 95 ? '🎯 완벽에 가까워요!' : accuracy >= 80 ? '👍 잘 하셨어요!' : '💪 조금 더 연습해봐요';
+  }
+  if (onsets.length < 4) return 120;
+  const intervals = [];
+  for (let i = 1; i < onsets.length; i++) {
+    const d = onsets[i]-onsets[i-1];
+    if (d > 0.25 && d < 2.5) intervals.push(d);
+  }
+  if (!intervals.length) return 120;
+  let rawBpm = 60 / (intervals.reduce((a,b)=>a+b,0)/intervals.length);
+  while (rawBpm < 60)  rawBpm *= 2;
+  while (rawBpm > 180) rawBpm /= 2;
+  return Math.max(60, Math.min(180, rawBpm));
+}
 
-    document.getElementById('res-wpm').textContent = wpm;
-    document.getElementById('res-acc').innerHTML   = accuracy + '<span class="stat-unit">%</span>';
-    document.getElementById('res-err').textContent = errors;
-    document.getElementById('res-time').textContent = totalSec.toFixed(1) + 's';
-    document.getElementById('res-msg').textContent  = msg;
+// ═══════════════════════════════════════════════════
+// UI SHOW / HIDE
+// ═══════════════════════════════════════════════════
+function showGameUI() {
+  document.getElementById('uploadScreen').style.display = 'none';
+  document.getElementById('gameScreen').classList.add('visible');
 
-    // Review
-    document.getElementById('review-text').innerHTML = text.split('').map((ch, i) => {
-      const color = i < userInput.length
-        ? (userInput[i] === ch ? 'var(--correct)' : 'var(--error)')
-        : 'var(--dim)';
-      return `<span style="color:${color}">${ch === ' ' ? '&nbsp;' : ch}</span>`;
-    }).join('');
+  laneCanvas = document.getElementById('laneCanvas');
+  laneCtx    = laneCanvas.getContext('2d');
+  vizCanvas  = document.getElementById('vizCanvas');
+  vizCtx     = vizCanvas.getContext('2d');
+  resizeCanvases();
+}
 
-    typingDiv.style.display = 'none';
-    resultDiv.style.display = 'block';
-    // Trigger animation
-    requestAnimationFrame(() => resultDiv.classList.add('show'));
+function changeFile() {
+  try { if (source) source.stop(); } catch(e) {}
+  isPlaying = false; pauseOffset = 0;
+  cancelAnimationFrame(animFrame);
+  document.getElementById('gameScreen').classList.remove('visible');
+  document.getElementById('uploadScreen').style.display = 'flex';
+  document.getElementById('fileInput').value = '';
+}
+
+function resizeCanvases() {
+  if (laneCanvas) {
+    laneCanvas.width  = laneCanvas.offsetWidth;
+    laneCanvas.height = laneCanvas.offsetHeight;
+  }
+  if (vizCanvas) {
+    vizCanvas.width  = vizCanvas.offsetWidth;
+    vizCanvas.height = vizCanvas.offsetHeight;
+  }
+}
+window.addEventListener('resize', resizeCanvases);
+
+// ═══════════════════════════════════════════════════
+// SPEED CONTROL
+// ═══════════════════════════════════════════════════
+function onSpeedChange(slider) {
+  speedMult = parseFloat(slider.value);
+  updateSpeedUI(slider);
+}
+function setSpeed(val) {
+  speedMult = val;
+  const slider = document.getElementById('speedSlider');
+  slider.value = val;
+  updateSpeedUI(slider);
+}
+function updateSpeedUI(slider) {
+  document.getElementById('speedDisplay').textContent = `×${speedMult.toFixed(speedMult % 1 === 0 ? 1 : 2)}`;
+  // Update slider gradient
+  const pct = ((speedMult - 0.5) / (5 - 0.5)) * 100;
+  slider.style.setProperty('--pct', pct + '%');
+}
+// init
+updateSpeedUI(document.getElementById('speedSlider'));
+
+// ═══════════════════════════════════════════════════
+// PLAY / PAUSE / RESET
+// ═══════════════════════════════════════════════════
+function togglePlay() {
+  if (!buffer) return;
+  isPlaying ? pauseGame() : startGame();
+}
+
+function startGame() {
+  if (!audioCtx) return;
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  source = audioCtx.createBufferSource();
+  source.buffer = buffer;
+  analyser = audioCtx.createAnalyser();
+  analyser.fftSize = 1024;
+  source.connect(analyser); analyser.connect(audioCtx.destination);
+  source.start(0, pauseOffset);
+  startTime = audioCtx.currentTime - pauseOffset;
+  isPlaying = true;
+  generateBeatQueue();
+  document.getElementById('playBtn').textContent = '⏸ 일시정지';
+  document.getElementById('trackIcon').classList.add('playing');
+  document.getElementById('tapHint').textContent = 'TAP!';
+  source.onended = () => { if (isPlaying) endGame(); };
+  gameLoop();
+}
+
+function pauseGame() {
+  try { source.stop(); } catch(e) {}
+  pauseOffset = audioCtx.currentTime - startTime;
+  isPlaying = false;
+  cancelAnimationFrame(animFrame);
+  document.getElementById('playBtn').textContent = '▶ 재생';
+  document.getElementById('trackIcon').classList.remove('playing');
+}
+
+function endGame() {
+  isPlaying = false;
+  cancelAnimationFrame(animFrame);
+  pauseOffset = 0;
+  document.getElementById('playBtn').textContent = '▶ 다시하기';
+  document.getElementById('trackIcon').classList.remove('playing');
+  document.getElementById('tapHint').textContent = '완료!';
+  document.getElementById('trackSub').textContent =
+    `최종 점수: ${score.toLocaleString()} · 정확도: ${calcAccuracy()}`;
+}
+
+function resetGame() {
+  try { if (source) source.stop(); } catch(e) {}
+  isPlaying = false; pauseOffset = 0;
+  cancelAnimationFrame(animFrame);
+  resetStats(); laneNotes = [];
+  document.getElementById('playBtn').textContent = '▶ 시작';
+  document.getElementById('trackIcon').classList.remove('playing');
+  document.getElementById('tapHint').textContent = 'TAP';
+  document.getElementById('progressBar').style.width = '0%';
+  if (laneCtx) laneCtx.clearRect(0,0,laneCanvas.width,laneCanvas.height);
+}
+
+function resetStats() {
+  score = 0; combo = 0; totalTaps = 0;
+  perfectTaps = 0; goodTaps = 0; missTaps = 0;
+  updateScoreUI();
+  document.getElementById('accuracyVal').textContent = '—';
+}
+
+// ═══════════════════════════════════════════════════
+// BEAT QUEUE
+// ═══════════════════════════════════════════════════
+function generateBeatQueue() {
+  beatQueue = [];
+  for (let t = beatInterval; t < buffer.duration; t += beatInterval)
+    beatQueue.push(t);
+}
+
+// ═══════════════════════════════════════════════════
+// GAME LOOP
+// ═══════════════════════════════════════════════════
+function gameLoop() {
+  if (!isPlaying) return;
+  const now = audioCtx.currentTime - startTime;
+  const TRAVEL = getTravelTime();
+
+  // Progress bar
+  document.getElementById('progressBar').style.width =
+    Math.min(now / buffer.duration * 100, 100) + '%';
+
+  // Beat flash
+  const beatPhase = (now % beatInterval) / beatInterval;
+  if (beatPhase < 0.06 && now - lastBeatTime > beatInterval * 0.5) {
+    lastBeatTime = now;
+    triggerBeatFlash();
   }
 
-  textarea.addEventListener('input', (e) => {
-    if (finished) return;
-    userInput = e.target.value;
-
-    if (!started && userInput.length > 0) {
-      started = true;
-      startTime = Date.now();
-      textarea.classList.add('active');
-      timerInterval = setInterval(() => {
-        const sec = ((Date.now() - startTime) / 1000).toFixed(1);
-        statusEl.textContent = `${sec}s  ·  ${userInput.length} / ${text.length}`;
-      }, 100);
+  // Spawn notes: queue beat into laneNotes when within TRAVEL window
+  for (let i = 0; i < beatQueue.length; i++) {
+    const arrT = beatQueue[i];
+    if (arrT - now <= TRAVEL + 0.1 && arrT - now > -(beatWindow + 0.1)) {
+      const exists = laneNotes.some(n => Math.abs(n.time - arrT) < 0.01);
+      if (!exists) laneNotes.push({ time: arrT, hit: false, miss: false, flashTimer: 0 });
     }
+  }
 
-    renderDisplay(userInput);
-
-    if (userInput.length >= text.length) {
-      finished = true;
-      clearInterval(timerInterval);
-      showResults();
+  // Expire missed beats
+  beatQueue = beatQueue.filter(t => {
+    if (t < now - beatWindow) {
+      const ln = laneNotes.find(n => Math.abs(n.time - t) < 0.01 && !n.hit);
+      if (ln) { ln.miss = true; }
+      return false;
     }
+    return true;
   });
 
-  // Prevent tab key from losing focus
-  textarea.addEventListener('keydown', (e) => {
-    if (e.key === 'Tab') { e.preventDefault(); }
-  });
+  // Trim old lane notes
+  laneNotes = laneNotes.filter(n => n.time - now > -(beatWindow + 0.5));
 
-  // Boot
-  init();
+  drawLane(now, TRAVEL);
+  drawVisualizer();
+
+  animFrame = requestAnimationFrame(gameLoop);
+}
+
+// ═══════════════════════════════════════════════════
+// DRAW LANE
+// ═══════════════════════════════════════════════════
+function drawLane(now, TRAVEL) {
+  if (!laneCtx) return;
+  const W = laneCanvas.width, H = laneCanvas.height;
+  const JY = H - 46; // judgment line Y
+
+  laneCtx.clearRect(0, 0, W, H);
+
+  // Center track glow
+  const tg = laneCtx.createLinearGradient(0,0,W,0);
+  tg.addColorStop(0,'transparent');
+  tg.addColorStop(0.5,'rgba(0,245,196,0.025)');
+  tg.addColorStop(1,'transparent');
+  laneCtx.fillStyle = tg; laneCtx.fillRect(0,0,W,H);
+
+  // Draw notes
+  for (const note of laneNotes) {
+    const tta = note.time - now; // time to arrival
+    const progress = 1 - tta / TRAVEL; // 0=top, 1=judgment line
+    const y = progress * JY;
+
+    if (note.hit) {
+      note.flashTimer++;
+      const r = note.flashTimer * 5;
+      const a = Math.max(0, 0.85 - note.flashTimer * 0.09);
+      // Primary burst
+      laneCtx.beginPath(); laneCtx.arc(W/2, JY, r, 0, Math.PI*2);
+      laneCtx.strokeStyle = `rgba(0,245,196,${a})`; laneCtx.lineWidth = 2.5; laneCtx.stroke();
+      // Secondary burst
+      laneCtx.beginPath(); laneCtx.arc(W/2, JY, r*0.55, 0, Math.PI*2);
+      laneCtx.strokeStyle = `rgba(245,230,66,${a*0.7})`; laneCtx.lineWidth = 1.5; laneCtx.stroke();
+      // Particles
+      for (let p = 0; p < 6; p++) {
+        const angle = (p/6)*Math.PI*2 + note.flashTimer*0.1;
+        const pr = r * 0.7;
+        const px = W/2 + Math.cos(angle)*pr, py = JY + Math.sin(angle)*pr * 0.4;
+        laneCtx.beginPath(); laneCtx.arc(px, py, 2, 0, Math.PI*2);
+        laneCtx.fillStyle = `rgba(0,245,196,${a})`; laneCtx.fill();
+      }
+      continue;
+    }
+
+    if (note.miss) {
+      const a = Math.max(0, 0.5 - (now - note.time) * 2.5);
+      laneCtx.beginPath(); laneCtx.arc(W/2, JY, 20, 0, Math.PI*2);
+      laneCtx.strokeStyle = `rgba(255,60,172,${a})`; laneCtx.lineWidth = 2; laneCtx.stroke();
+      // X mark
+      laneCtx.strokeStyle = `rgba(255,60,172,${a*0.7})`;
+      laneCtx.lineWidth = 2;
+      laneCtx.beginPath(); laneCtx.moveTo(W/2-8,JY-8); laneCtx.lineTo(W/2+8,JY+8); laneCtx.stroke();
+      laneCtx.beginPath(); laneCtx.moveTo(W/2+8,JY-8); laneCtx.lineTo(W/2-8,JY+8); laneCtx.stroke();
+      continue;
+    }
+
+    // Only draw if visible
+    if (y < -30 || y > H + 10) continue;
+
+    const closeness = Math.max(0, 1 - Math.abs(tta) / (TRAVEL * 0.5));
+    const baseR = 15 + closeness * 7;
+
+    // Trail
+    const trailLen = Math.min(60, y);
+    if (trailLen > 2) {
+      const trl = laneCtx.createLinearGradient(0, y - trailLen, 0, y);
+      trl.addColorStop(0, 'transparent');
+      trl.addColorStop(1, `rgba(0,245,196,${0.12 + closeness * 0.18})`);
+      laneCtx.fillStyle = trl;
+      laneCtx.fillRect(W/2 - 2, y - trailLen, 4, trailLen);
+    }
+
+    // Outer glow
+    const glowR = baseR * 2.8;
+    const grd = laneCtx.createRadialGradient(W/2,y,0, W/2,y,glowR);
+    grd.addColorStop(0,   `rgba(0,245,196,${0.18 + closeness*0.45})`);
+    grd.addColorStop(0.4, `rgba(0,245,196,${0.05 + closeness*0.1})`);
+    grd.addColorStop(1,   'transparent');
+    laneCtx.beginPath(); laneCtx.arc(W/2,y,glowR,0,Math.PI*2);
+    laneCtx.fillStyle = grd; laneCtx.fill();
+
+    // Note body
+    laneCtx.beginPath(); laneCtx.arc(W/2,y,baseR,0,Math.PI*2);
+    const ig = laneCtx.createRadialGradient(W/2,y-4,0, W/2,y,baseR);
+    ig.addColorStop(0,   `rgba(255,255,255,${0.9+closeness*0.1})`);
+    ig.addColorStop(0.35,`rgba(0,245,196,${0.7+closeness*0.3})`);
+    ig.addColorStop(1,   'rgba(0,160,120,0.95)');
+    laneCtx.fillStyle = ig; laneCtx.fill();
+
+    // Border
+    laneCtx.beginPath(); laneCtx.arc(W/2,y,baseR,0,Math.PI*2);
+    laneCtx.strokeStyle = `rgba(0,245,196,${0.5+closeness*0.5})`;
+    laneCtx.lineWidth = 1.5; laneCtx.stroke();
+
+    // Pulse ring near judgment
+    if (closeness > 0.65) {
+      const pulse = (closeness-0.65)/0.35;
+      laneCtx.beginPath(); laneCtx.arc(W/2,y,baseR+10*pulse,0,Math.PI*2);
+      laneCtx.strokeStyle = `rgba(245,230,66,${pulse*0.65})`; laneCtx.lineWidth=2; laneCtx.stroke();
+    }
+
+    // Side tick guides
+    const ta = 0.12 + closeness*0.38;
+    laneCtx.fillStyle = `rgba(0,245,196,${ta})`;
+    laneCtx.fillRect(W/2-W*0.38, y-1, W*0.2, 2);
+    laneCtx.fillRect(W/2+W*0.18, y-1, W*0.2, 2);
+  }
+
+  // Judgment line
+  const beatPhase = (now % beatInterval) / beatInterval;
+  const la = 0.4 + Math.pow(1-beatPhase,3)*0.55;
+  const jlg = laneCtx.createLinearGradient(0,0,W,0);
+  jlg.addColorStop(0,'transparent');
+  jlg.addColorStop(0.25,`rgba(0,245,196,${la})`);
+  jlg.addColorStop(0.75,`rgba(255,60,172,${la})`);
+  jlg.addColorStop(1,'transparent');
+  laneCtx.fillStyle = jlg; laneCtx.fillRect(0, JY-1, W, 2);
+
+  // Perfect zone highlight
+  laneCtx.fillStyle = 'rgba(0,245,196,0.025)';
+  laneCtx.fillRect(0, JY-18, W, 36);
+}
+
+// ═══════════════════════════════════════════════════
+// BEAT FLASH
+// ═══════════════════════════════════════════════════
+const beatFlashEl = document.getElementById('beatFlashEl');
+let beatFlashTimer;
+function triggerBeatFlash() {
+  beatFlashEl.classList.add('on');
+  clearTimeout(beatFlashTimer);
+  beatFlashTimer = setTimeout(()=>beatFlashEl.classList.remove('on'), 110);
+}
+
+// ═══════════════════════════════════════════════════
+// TAP HANDLER
+// ═══════════════════════════════════════════════════
+document.getElementById('tapZone').addEventListener('touchstart', e => {
+  e.preventDefault(); handleTap();
+}, { passive: false });
+
+// ── All keyboard input ──
+// We block only keys that would scroll or do browser things
+const BROWSER_KEYS = new Set(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight']);
+// Keys to ignore (modifiers, F-keys, etc.)
+const IGNORE_KEYS  = new Set(['Meta','Control','Alt','CapsLock','Tab','Escape',
+  'F1','F2','F3','F4','F5','F6','F7','F8','F9','F10','F11','F12']);
+
+// Key → badge element id map
+const KEY_BADGE_MAP = {
+  'KeyA':'kb_a','KeyB':'kb_b','KeyC':'kb_c','KeyD':'kb_d','KeyE':'kb_e',
+  'KeyF':'kb_f','KeyG':'kb_g','KeyH':'kb_h','KeyI':null,'KeyJ':null,
+  'KeyK':null,'KeyL':null,'KeyM':null,'KeyN':'kb_n','KeyO':null,'KeyP':null,
+  'KeyQ':'kb_q','KeyR':'kb_r','KeyS':'kb_s','KeyT':'kb_t','KeyU':null,
+  'KeyV':'kb_v','KeyW':'kb_w','KeyX':'kb_x','KeyY':'kb_y','KeyZ':'kb_z',
+  'Digit1':'kb_1','Digit2':'kb_2','Digit3':'kb_3',
+  'Digit4':'kb_4','Digit5':'kb_5','Digit6':'kb_6',
+  'Space':'kb_space','Enter':'kb_enter',
+  'ShiftLeft':'kb_shift','ShiftRight':'kb_shift',
+};
+
+document.addEventListener('keydown', e => {
+  if (e.repeat) return;
+  if (IGNORE_KEYS.has(e.key)) return;
+  if (BROWSER_KEYS.has(e.code)) e.preventDefault();
+
+  // Flash the key badge if mapped
+  const badgeId = KEY_BADGE_MAP[e.code];
+  if (badgeId) flashKeyBadge(badgeId);
+
+  handleTap();
+});
+
+function flashKeyBadge(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.add('pressed');
+  setTimeout(() => el.classList.remove('pressed'), 130);
+}
+
+function handleTap() {
+  if (!isPlaying) return;
+  const now = audioCtx.currentTime - startTime;
+  spawnRipple();
+  totalTaps++;
+
+  let nearestDist = Infinity, nearestIdx = -1, nearest = null;
+  for (let i = 0; i < Math.min(beatQueue.length, 8); i++) {
+    const d = Math.abs(beatQueue[i] - now);
+    if (d < nearestDist) { nearestDist = d; nearest = beatQueue[i]; nearestIdx = i; }
+  }
+
+  if (nearestDist <= beatWindow * 0.45) {
+    perfectTaps++; combo++;
+    score += 100 + combo*10;
+    markNoteHit(nearest);
+    beatQueue.splice(nearestIdx,1);
+    showJudgment('PERFECT!','perfect');
+    setTapZoneClass('hit-perfect');
+  } else if (nearestDist <= beatWindow) {
+    goodTaps++; combo++;
+    score += 50 + combo*5;
+    markNoteHit(nearest);
+    beatQueue.splice(nearestIdx,1);
+    showJudgment('GOOD','good');
+    setTapZoneClass('hit-good');
+  } else {
+    missTaps++; combo = 0;
+    showJudgment('MISS','miss');
+    setTapZoneClass('hit-miss');
+  }
+  updateScoreUI();
+}
+
+function markNoteHit(time) {
+  const n = laneNotes.find(n => Math.abs(n.time-time)<0.01);
+  if (n) { n.hit = true; n.flashTimer = 0; }
+}
+
+function showJudgment(text, cls) {
+  const el = document.getElementById('judgment');
+  el.className = cls; el.textContent = text;
+  el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+}
+
+let tapZoneTimer;
+const tapZone = document.getElementById('tapZone');
+function setTapZoneClass(cls) {
+  tapZone.classList.remove('hit-perfect','hit-good','hit-miss');
+  tapZone.classList.add(cls);
+  clearTimeout(tapZoneTimer);
+  tapZoneTimer = setTimeout(()=>tapZone.classList.remove(cls), 160);
+}
+
+function spawnRipple() {
+  const rect = tapZone.getBoundingClientRect();
+  const x = rect.left + rect.width/2, y = rect.top + rect.height/2;
+  const colors=['rgba(0,245,196,0.7)','rgba(255,60,172,0.7)','rgba(245,230,66,0.7)'];
+  const color = colors[Math.floor(Math.random()*3)];
+  const div = document.createElement('div');
+  div.className='beat-circle';
+  div.style.cssText=`left:${x}px;top:${y}px;width:48px;height:48px;border:2px solid ${color};box-shadow:0 0 14px ${color};`;
+  document.body.appendChild(div);
+  setTimeout(()=>div.remove(),550);
+}
+
+// ═══════════════════════════════════════════════════
+// SCORE UI
+// ═══════════════════════════════════════════════════
+function updateScoreUI() {
+  document.getElementById('scoreVal').textContent    = score.toLocaleString();
+  document.getElementById('comboVal').textContent    = combo;
+  document.getElementById('accuracyVal').textContent = calcAccuracy();
+  document.getElementById('perfectVal').textContent  = perfectTaps;
+  document.getElementById('goodVal').textContent     = goodTaps;
+  document.getElementById('missVal').textContent     = missTaps;
+}
+function calcAccuracy() {
+  if (!totalTaps) return '—';
+  return ((perfectTaps + goodTaps*0.5)/totalTaps*100).toFixed(1)+'%';
+}
+
+// ═══════════════════════════════════════════════════
+// VISUALIZER
+// ═══════════════════════════════════════════════════
+function drawVisualizer() {
+  if (!analyser || !vizCanvas) return;
+  const data = new Uint8Array(analyser.frequencyBinCount);
+  analyser.getByteFrequencyData(data);
+  const W=vizCanvas.width, H=vizCanvas.height;
+  vizCtx.clearRect(0,0,W,H);
+  const bars=40, step=Math.floor(data.length/bars), bw=W/bars;
+  for (let i=0;i<bars;i++) {
+    let sum=0;
+    for (let j=0;j<step;j++) sum+=data[i*step+j];
+    const bh=(sum/step/255)*H;
+    const t=i/bars;
+    vizCtx.fillStyle=`rgba(${Math.round(t*255)},${Math.round(245-t*185)},${Math.round(196-t*24)},0.8)`;
+    vizCtx.fillRect(i*bw+1, H-bh, bw-2, bh);
+  }
+}
 </script>
 </body>
 </html>
