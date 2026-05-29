@@ -1098,5 +1098,17 @@ function drawVisualizer() {
   }
 }
 </script>
+<!-- Supabase -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+const SUPABASE_URL = 'https://ppvngxhmjcacqkbqvmue.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_JHFGbJHKOG2A5-SD8BPfOQ_7-dhBl7o';
+
+const supabaseClient = supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_ANON_KEY
+);
+</script>
 </body>
 </html>
