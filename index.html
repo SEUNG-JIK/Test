@@ -667,8 +667,9 @@ function showGameUI() {
 }
 
 function changeFile() {
+  isPlaying = false;
   try { if (source) source.stop(); } catch(e) {}
-  isPlaying = false; pauseOffset = 0;
+  pauseOffset = 0;
   cancelAnimationFrame(animFrame);
   document.getElementById('gameScreen').classList.remove('visible');
   document.getElementById('uploadScreen').style.display = 'flex';
@@ -737,15 +738,15 @@ function startGame() {
 }
 
 function pauseGame() {
+  isPlaying = false;
   try { source.stop(); } catch(e) {}
   pauseOffset = audioCtx.currentTime - startTime;
-  isPlaying = false;
   cancelAnimationFrame(animFrame);
   document.getElementById('playBtn').textContent = '▶ 재생';
   document.getElementById('trackIcon').classList.remove('playing');
 }
 
-function endGame() {
+async function endGame() {
   isPlaying = false;
   cancelAnimationFrame(animFrame);
   pauseOffset = 0;
@@ -755,12 +756,13 @@ function endGame() {
   document.getElementById('trackSub').textContent =
     `최종 점수: ${score.toLocaleString()} · 정확도: ${calcAccuracy()}`;
 
-  awaitsaveScore();
+  await saveScore();
 }
 
 function resetGame() {
+  isPlaying = false;
   try { if (source) source.stop(); } catch(e) {}
-  isPlaying = false; pauseOffset = 0;
+  pauseOffset = 0;
   cancelAnimationFrame(animFrame);
   resetStats(); laneNotes = [];
   document.getElementById('playBtn').textContent = '▶ 시작';
@@ -974,6 +976,11 @@ document.getElementById('tapZone').addEventListener('touchstart', e => {
   e.preventDefault(); handleTap();
 }, { passive: false });
 
+function handleTapTouch(event) {
+  event.preventDefault();
+  handleTap();
+}
+
 // ── All keyboard input ──
 // We block only keys that would scroll or do browser things
 const BROWSER_KEYS = new Set(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight']);
@@ -1136,7 +1143,7 @@ async function saveScore() {
 }
 
 async function renderRanking() {
-  if (!window.supabaseClient) return;
+  if (typeof supabaseClient === 'undefined' || !supabaseClient) return;
 
   const board = document.getElementById('rankingBoard');
   if (!board) return;
@@ -1198,10 +1205,11 @@ function drawVisualizer() {
 const SUPABASE_URL = 'https://ppvngxhmjcacqkbqvmue.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_JHFGbJHKOG2A5-SD8BPfOQ_7-dhBl7o';
 
-const supabaseClient = supabase.createClient(
+window.supabaseClient = supabase.createClient(
   SUPABASE_URL,
   SUPABASE_ANON_KEY
 );
+const supabaseClient = window.supabaseClient;
 </script>
 
 </body>
