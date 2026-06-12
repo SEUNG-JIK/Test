@@ -1100,8 +1100,6 @@ function calcAccuracy() {
 // SUPABASE SCORE SAVE
 // ═══════════════════════════════════════════════════
 async function saveScore() {
-  if (!window.supabaseClient) return;
-
   try {
     const playerName = prompt('플레이어 이름 입력') || 'Anonymous';
 
