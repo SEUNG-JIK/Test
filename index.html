@@ -755,7 +755,7 @@ function endGame() {
   document.getElementById('trackSub').textContent =
     `최종 점수: ${score.toLocaleString()} · 정확도: ${calcAccuracy()}`;
 
-  await saveScore();
+  awaitsaveScore();
 }
 
 function resetGame() {
